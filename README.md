@@ -75,8 +75,8 @@ Open http://localhost:3000.
 | --- | --- |
 | `DATABASE_URL` | PostgreSQL connection string. Locally, use the credentials from `docker-compose.yml` with host `localhost` and port `5432`. |
 | `REDIS_URL` | Redis connection string, for example `redis://localhost:6379`. Use a `rediss://` URL for hosted Redis with TLS. |
-| `NEXTAUTH_SECRET` | Random secret used to sign sessions. Generate one with `openssl rand -base64 32`. On Vercel, the same value is set as `AUTH_SECRET`. |
-| `NEXTAUTH_URL` | Base URL of the app. Needed locally, not on Vercel. |
+| `NEXTAUTH_SECRET` | Random secret used to sign sessions. Generate one with `openssl rand -base64 32`. On Vercel the variable is named `AUTH_SECRET`; use a different, newly generated value for production. |
+| `NEXTAUTH_URL` | Base URL of the app, for example `http://localhost:3000`. Not set on the Vercel deployment. |
 
 The `.env` file is ignored by git. `.env.example` lists the names only.
 

@@ -3,7 +3,8 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { redis } from "@/lib/redis";
 import { fetchArbeitnowJobs, type ArbeitnowJob } from "@/lib/arbeitnow";
-import { scoreAndSortJobs, type ScoredJob } from "@/lib/matching";
+import { filterAndScoreJobs, type ScoredJob } from "@/lib/matching";
+import { htmlToPlainText } from "@/lib/text";
 
 const CACHE_KEY = "arbeitnow:jobs";
 const CACHE_TTL_SECONDS = 60 * 10; // 10 minutes
@@ -13,19 +14,7 @@ const MAX_LIMIT = 100;
 // Strips the heavy HTML description and replaces it with a short plain-text snippet
 function toListItem(job: ScoredJob) {
   const { description, ...rest } = job;
-  const snippet = description
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ")
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 240);
-
-  return { ...rest, snippet };
+  return { ...rest, snippet: htmlToPlainText(description).slice(0, 240) };
 }
 
 // Returns raw listings from Redis if cached, otherwise fetches from Arbeitnow
@@ -77,13 +66,17 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const requestedLimit = Number(searchParams.get("limit")) || DEFAULT_LIMIT;
   const limit = Math.min(Math.max(requestedLimit, 1), MAX_LIMIT);
+  const includeAll = searchParams.get("all") === "1";
 
   try {
     const { jobs, cached } = await getJobs();
-    const scored = scoreAndSortJobs(jobs, user);
+    const { jobs: scored, hiddenCount } = filterAndScoreJobs(jobs, user, {
+      includeAll,
+    });
 
     return NextResponse.json({
       total: scored.length,
+      hiddenCount,
       cached,
       jobs: scored.slice(0, limit).map(toListItem),
     });

@@ -19,6 +19,7 @@ type JobListItem = {
 type JobsResponse = {
   total: number;
   cached: boolean;
+  hiddenCount: number;
   jobs: JobListItem[];
 };
 
@@ -43,6 +44,8 @@ function formatDate(unixSeconds: number): string {
 export default function JobSearch() {
   const [jobs, setJobs] = useState<JobListItem[]>([]);
   const [total, setTotal] = useState(0);
+  const [hiddenCount, setHiddenCount] = useState(0);
+  const [showAll, setShowAll] = useState(false);
   const [trackedUrls, setTrackedUrls] = useState<Set<string>>(new Set());
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,9 +53,10 @@ export default function JobSearch() {
 
   useEffect(() => {
     async function load() {
+      setLoading(true);
       try {
         const [jobsRes, appsRes] = await Promise.all([
-          fetch("/api/jobs?limit=50"),
+          fetch("/api/jobs?limit=50" + (showAll ? "&all=1" : "")),
           fetch("/api/applications"),
         ]);
 
@@ -61,6 +65,7 @@ export default function JobSearch() {
         const jobsData: JobsResponse = await jobsRes.json();
         setJobs(jobsData.jobs);
         setTotal(jobsData.total);
+        setHiddenCount(jobsData.hiddenCount);
 
         if (appsRes.ok) {
           const appsData: ApplicationsResponse = await appsRes.json();
@@ -77,7 +82,7 @@ export default function JobSearch() {
     }
 
     load();
-  }, []);
+  }, [showAll]);
 
   async function handleTrack(job: JobListItem) {
     setPendingUrl(job.url);
@@ -119,9 +124,36 @@ export default function JobSearch() {
         </p>
       )}
 
-      <p className="mb-4 text-sm text-gray-500">
-        Showing {jobs.length} of {total} listings
-      </p>
+      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
+        <span>
+          Showing {jobs.length} of {total} listings
+        </span>
+        {hiddenCount > 0 && !showAll && (
+          <button
+            type="button"
+            onClick={() => setShowAll(true)}
+            className="underline hover:text-gray-800"
+          >
+            {hiddenCount} less relevant hidden · Show all
+          </button>
+        )}
+        {showAll && (
+          <button
+            type="button"
+            onClick={() => setShowAll(false)}
+            className="underline hover:text-gray-800"
+          >
+            Show best matches only
+          </button>
+        )}
+      </div>
+
+      {jobs.length === 0 && (
+        <p className="mb-4 rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-700">
+          No listings match your profile right now. Try broadening your desired
+          role or location in your profile, or show all listings.
+        </p>
+      )}
 
       <ul className="space-y-4">
         {jobs.map((job) => {
